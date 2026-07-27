@@ -753,4 +753,85 @@
 
     <!-- When making a call to emergency numbers, show this toast -->
     <string name="disallow_emergency_call">Can\'t make a voice call to emergency services here.</string>
+
+
+    <!-- One-time-password automatic recognition and copying -->
+    <string name="otp_settings_title">Verification codes</string>
+    <string name="otp_settings_summary">Automatically copy verification codes from new SMS messages</string>
+    <string name="otp_auto_copy_title">Automatically copy verification codes</string>
+    <string name="otp_auto_copy_summary">Copies a detected code from newly received SMS messages</string>
+    <string name="otp_show_toast_title">Show copy confirmation</string>
+    <string name="otp_show_toast_summary">Show a short message after a code is copied</string>
+    <string name="otp_rules_title">Recognition rules</string>
+    <string name="otp_rules_summary">Drag to set priority. Swipe custom rules left to delete.</string>
+    <string name="otp_add_rule">Add rule</string>
+    <string name="otp_builtin_rule">Built-in rule</string>
+    <string name="otp_rule_enabled">Enable rule</string>
+    <string name="otp_builtin_rule_not_deletable">Built-in rules cannot be deleted</string>
+    <string name="otp_rule_edit_title">Edit verification code rule</string>
+    <string name="otp_rule_name_hint">Rule name</string>
+    <string name="otp_rule_pattern_hint">Regular expression</string>
+    <string name="otp_rule_test_message_hint">Test SMS message</string>
+    <string name="otp_preview_title">Live preview</string>
+    <string name="otp_preview_enter_test_message">Enter a regular expression and test SMS message</string>
+    <string name="otp_preview_checking">Checking…</string>
+    <string name="otp_preview_no_match">No code matched</string>
+    <string name="otp_preview_matched">Matched code: %1$s</string>
+    <string name="otp_rule_name_required">Enter a rule name</string>
+    <string name="otp_rule_pattern_required">Enter a regular expression</string>
+    <string name="otp_copied_to_clipboard">Verification code %1$s copied</string>
+
+
+
+    <!-- Local SMS conversation categories -->
+    <string name="category_settings_title">Message categories</string>
+    <string name="category_settings_summary">Sort messages into personal, notifications, promotions, and more</string>
+    <string name="category_settings_detail_summary">Drag categories to set their display order. Swipe a custom category to remove it.</string>
+    <string name="category_chip_unread_count">%1$s %2$d</string>
+    <string name="category_all_always_shown">Always shown</string>
+    <string name="category_builtin">Built-in category</string>
+    <string name="category_custom">Custom category</string>
+    <string name="category_enable">Enable category</string>
+    <string name="category_add_custom">New category</string>
+    <string name="category_reset_title">Restore default categories?</string>
+    <string name="category_reset_message">Custom categories and rules will be removed. Built-in categories and rules will be restored.</string>
+    <string name="category_reset_action">Reset to defaults</string>
+    <string name="category_reclassification_title">Updating message categories</string>
+    <string name="category_reclassification_progress">%1$d of %2$d conversations</string>
+    <string name="category_rule_edit_title">Category rules</string>
+    <string name="category_name_hint">Category name</string>
+    <string name="category_name_required">Enter a category name</string>
+    <string name="category_icon_hint">Material icon</string>
+    <string name="category_choose_color">Choose color</string>
+    <string name="category_rules_title">Matching rules</string>
+    <string name="category_add_rule">Add rule</string>
+    <string name="category_delete_rule">Delete rule</string>
+    <string name="category_test_sms_hint">Test SMS content</string>
+    <string name="category_test_rules">Test rules</string>
+    <string name="category_test_match">Matches %1$s (score %2$d)</string>
+    <string name="category_test_no_match">No rule matched</string>
+
+
+
+    <!-- Fully local service-SMS card parsing -->
+    <string name="sms_card_settings_title">SMS smart cards</string>
+    <string name="sms_card_settings_summary">Parse service SMS messages locally into useful cards</string>
+    <string name="sms_card_enabled_title">Enable SMS card parsing</string>
+    <string name="sms_card_enabled_summary">SMS text stays on this device and is never uploaded</string>
+    <string name="sms_card_confidence_title">Minimum confidence</string>
+    <string name="sms_card_types_title">Card types</string>
+    <string name="sms_card_history_title">Card history</string>
+    <string name="sms_card_clear_title">Clear card cache?</string>
+    <string name="sms_card_clear_message">This removes locally parsed card data. Your SMS messages remain unchanged.</string>
+    <string name="sms_card_clear_action">Clear all card cache</string>
+    <string name="sms_card_advanced_title">Advanced</string>
+    <string name="sms_card_import">Import custom rule file</string>
+    <string name="sms_card_export">Export current rules</string>
+    <string name="sms_card_import_success">Rule file imported</string>
+    <string name="sms_card_import_failed">Rule file is invalid</string>
+    <string name="sms_card_export_success">Rules exported</string>
+    <string name="sms_card_export_failed">Could not export rules</string>
+    <string name="sms_card_external_title">Allow external app access</string>
+    <string name="sms_card_external_message">This extension is off by default. Enabling it permits a future explicitly permission-protected integration to read structured card data; no provider is enabled by this build.</string>
+
 </resources>

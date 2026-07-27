@@ -34,6 +34,8 @@ import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.SyncManager;
+import com.android.messaging.category.SmsClassifier;
+import com.android.messaging.card.SmsCardParsingService;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.sms.MmsSmsUtils;
@@ -162,6 +164,26 @@ public class ReceiveSmsMessageAction extends Action implements Parcelable {
             LogUtil.i(TAG, "ReceiveSmsMessageAction: Received SMS message " + message.getMessageId()
                     + " in conversation " + message.getConversationId()
                     + ", uri = " + messageUri);
+
+            // This Action already runs on Messaging's background worker. Classify the freshly
+            // persisted incoming SMS only; historical conversations are handled separately after
+            // a rule change by CategoryReclassificationService.
+            try {
+                SmsClassifier.classifyAndCache(context, db, conversationId, text, address);
+            } catch (final RuntimeException exception) {
+                LogUtil.w(TAG, "Unable to classify received SMS", exception);
+            }
+
+            // Card parsing is independently queued after persistence. It consumes pure local SMS
+            // text and module 1's optional OTP evidence; it never blocks message delivery.
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    SmsCardParsingService.enqueue(context, Long.parseLong(message.getMessageId()),
+                            threadId, conversationId, text, address);
+                } catch (final NumberFormatException exception) {
+                    LogUtil.w(TAG, "Unable to queue SMS card parsing", exception);
+                }
+            }
 
             actionParameters.putInt(KEY_SUB_ID, subId);
             ProcessPendingMessagesAction.scheduleProcessPendingMessagesAction(false, this);

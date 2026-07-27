@@ -34,6 +34,36 @@
         android:title="@string/notifications_pref_title"
         android:persistent="true" />
 
+    <Preference
+        android:key="otp_settings_pref_key"
+        android:title="@string/otp_settings_title"
+        android:summary="@string/otp_settings_summary"
+        android:persistent="false">
+        <intent
+            android:targetPackage="com.android.messaging"
+            android:targetClass="com.android.messaging.ui.otp.OtpSettingsActivity" />
+    </Preference>
+
+    <Preference
+        android:key="sms_card_settings_pref_key"
+        android:title="@string/sms_card_settings_title"
+        android:summary="@string/sms_card_settings_summary"
+        android:persistent="false">
+        <intent
+            android:targetPackage="com.android.messaging"
+            android:targetClass="com.android.messaging.ui.cardsettings.SmsCardSettingsActivity" />
+    </Preference>
+
+    <Preference
+        android:key="category_settings_pref_key"
+        android:title="@string/category_settings_title"
+        android:summary="@string/category_settings_summary"
+        android:persistent="false">
+        <intent
+            android:targetPackage="com.android.messaging"
+            android:targetClass="com.android.messaging.ui.category.CategorySettingsActivity" />
+    </Preference>
+
     <SwitchPreferenceCompat
         android:key="@string/swipe_right_deletes_conversation_key"
         android:title="@string/swipe_to_delete_conversation_pref_title"

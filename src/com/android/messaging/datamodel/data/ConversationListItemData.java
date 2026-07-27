@@ -66,6 +66,9 @@ public class ConversationListItemData {
     private String mSnippetSenderFirstName;
     private String mSnippetSenderDisplayDestination;
     private boolean mIsEnterprise;
+    private int mCategoryId;
+    private String mCategoryName;
+    private int mCategoryColor;
 
     public ConversationListItemData() {
     }
@@ -115,6 +118,9 @@ public class ConversationListItemData {
         mSnippetSenderDisplayDestination =
                 cursor.getString(INDEX_SNIPPET_SENDER_DISPLAY_DESTINATION);
         mIsEnterprise = cursor.getInt(INDEX_IS_ENTERPRISE) == 1;
+        mCategoryId = cursor.getInt(INDEX_CATEGORY_ID);
+        mCategoryName = cursor.getString(INDEX_CATEGORY_NAME);
+        mCategoryColor = cursor.isNull(INDEX_CATEGORY_COLOR) ? 0 : cursor.getInt(INDEX_CATEGORY_COLOR);
     }
 
     public String getConversationId() {
@@ -167,6 +173,19 @@ public class ConversationListItemData {
      */
     public boolean isEnterprise() {
         return mIsEnterprise;
+    }
+
+    /** Cached local category id. ALL / unclassified is 1. */
+    public int getCategoryId() {
+        return mCategoryId;
+    }
+
+    public String getCategoryName() {
+        return mCategoryName;
+    }
+
+    public int getCategoryColor() {
+        return mCategoryColor;
     }
 
     public String getParticipantLookupKey() {
@@ -325,12 +344,24 @@ public class ConversationListItemData {
             + DatabaseHelper.PARTICIPANTS_TABLE + '.' + ParticipantColumns.DISPLAY_DESTINATION
             + " as " + ConversationListViewColumns.SNIPPET_SENDER_DISPLAY_DESTINATION + ", "
             + DatabaseHelper.CONVERSATIONS_TABLE + '.' + ConversationColumns.IS_ENTERPRISE
-            + " as " + ConversationListViewColumns.IS_ENTERPRISE;
+            + " as " + ConversationListViewColumns.IS_ENTERPRISE + ", "
+            + DatabaseHelper.CONVERSATIONS_TABLE + '.' + ConversationColumns.CATEGORY_ID
+            + " as " + ConversationListViewColumns.CATEGORY_ID + ", "
+            + DatabaseHelper.SMS_CATEGORIES_TABLE + '.' + DatabaseHelper.CategoryColumns.NAME
+            + " as " + ConversationListViewColumns.CATEGORY_NAME + ", "
+            + DatabaseHelper.SMS_CATEGORIES_TABLE + '.' + DatabaseHelper.CategoryColumns.COLOR
+            + " as " + ConversationListViewColumns.CATEGORY_COLOR;
 
     private static final String JOIN_PARTICIPANTS =
             " LEFT JOIN " + DatabaseHelper.PARTICIPANTS_TABLE + " ON ("
             + DatabaseHelper.MESSAGES_TABLE + '.' + MessageColumns.SENDER_PARTICIPANT_ID
             + '=' + DatabaseHelper.PARTICIPANTS_TABLE + '.' + DatabaseHelper.ParticipantColumns._ID
+            + ") ";
+
+    private static final String JOIN_CATEGORIES =
+            " LEFT JOIN " + DatabaseHelper.SMS_CATEGORIES_TABLE + " ON ("
+            + DatabaseHelper.CONVERSATIONS_TABLE + '.' + ConversationColumns.CATEGORY_ID
+            + '=' + DatabaseHelper.SMS_CATEGORIES_TABLE + '.' + DatabaseHelper.CategoryColumns._ID
             + ") ";
 
     // View that makes latest message read flag available with rest of conversation data.
@@ -347,6 +378,7 @@ public class ConversationListItemData {
             + DatabaseHelper.CONVERSATIONS_TABLE + '.' +  ConversationColumns.LATEST_MESSAGE_ID
             + '=' + DatabaseHelper.MESSAGES_TABLE + '.' + MessageColumns._ID + ") "
             + JOIN_PARTICIPANTS
+            + JOIN_CATEGORIES
             + "ORDER BY " + DatabaseHelper.CONVERSATIONS_TABLE + '.'
             + ConversationColumns.SORT_TIMESTAMP + " DESC";
 
@@ -382,6 +414,9 @@ public class ConversationListItemData {
         static final String SNIPPET_SENDER_DISPLAY_DESTINATION =
                 "snippet_sender_display_destination";
         static final String IS_ENTERPRISE = ConversationColumns.IS_ENTERPRISE;
+        static final String CATEGORY_ID = ConversationColumns.CATEGORY_ID;
+        static final String CATEGORY_NAME = "category_name";
+        static final String CATEGORY_COLOR = "category_color";
     }
 
     public static final String[] PROJECTION = {
@@ -412,6 +447,9 @@ public class ConversationListItemData {
         ConversationListViewColumns.SNIPPET_SENDER_FIRST_NAME,
         ConversationListViewColumns.SNIPPET_SENDER_DISPLAY_DESTINATION,
         ConversationListViewColumns.IS_ENTERPRISE,
+        ConversationListViewColumns.CATEGORY_ID,
+        ConversationListViewColumns.CATEGORY_NAME,
+        ConversationListViewColumns.CATEGORY_COLOR,
     };
 
     private static final int INDEX_ID = 0;
@@ -441,6 +479,9 @@ public class ConversationListItemData {
     private static final int INDEX_SNIPPET_SENDER_FIRST_NAME = 24;
     private static final int INDEX_SNIPPET_SENDER_DISPLAY_DESTINATION = 25;
     private static final int INDEX_IS_ENTERPRISE = 26;
+    private static final int INDEX_CATEGORY_ID = 27;
+    private static final int INDEX_CATEGORY_NAME = 28;
+    private static final int INDEX_CATEGORY_COLOR = 29;
 
     private static final String DIVIDER_TEXT = ", ";
 

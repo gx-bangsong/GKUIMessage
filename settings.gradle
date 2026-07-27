@@ -1,0 +1,20 @@
+// Dual-build entry point for Android Studio / local Gradle development.
+// Production LineageOS builds continue to use Android.bp at the repository root.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "GKUIMessage"
+include(":messagingGradle", ":smart-sms-core")
+project(":messagingGradle").projectDir = file("gradle-app")
+project(":smart-sms-core").projectDir = file("smart-sms-core")

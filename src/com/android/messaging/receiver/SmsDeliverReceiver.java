@@ -22,6 +22,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.provider.Telephony.Sms;
 
+import com.android.messaging.otp.OtpAutoCopyManager;
+import com.android.messaging.util.ThreadUtil;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Class that receives incoming SMS messages on KLP+ Devices.
  */
@@ -29,6 +34,20 @@ public final class SmsDeliverReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(final Context context, final Intent intent) {
         if (Sms.Intents.SMS_DELIVER_ACTION.equals(intent.getAction())) {
+            // Keep the ordered SMS broadcast alive only for the bounded receive-time OTP task.
+            // Normal delivery is deliberately started immediately and is never blocked by regex.
+            final PendingResult pendingResult = goAsync();
+            final AtomicBoolean finished = new AtomicBoolean();
+            final Runnable finishBroadcast = () -> {
+                if (finished.compareAndSet(false, true)) {
+                    pendingResult.finish();
+                }
+            };
+            // The 750 ms guard is independent of the 500 ms regex limit. It guarantees that a
+            // database failure cannot keep an ordered SMS broadcast alive until the ANR limit.
+            ThreadUtil.getMainThreadHandler().postDelayed(finishBroadcast, 750L);
+            OtpAutoCopyManager.processIncomingSms(context, SmsReceiver.getIncomingSmsBody(intent),
+                    finishBroadcast);
             SmsReceiver.deliverSmsIntent(context, intent);
         }
     }

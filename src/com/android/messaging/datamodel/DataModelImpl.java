@@ -49,6 +49,8 @@ import com.android.messaging.datamodel.data.SettingsData;
 import com.android.messaging.datamodel.data.SettingsData.SettingsDataListener;
 import com.android.messaging.datamodel.data.SubscriptionListData;
 import com.android.messaging.datamodel.data.VCardContactItemData;
+import com.android.messaging.category.SmsCategoryRepository;
+import com.android.messaging.otp.OtpRuleRepository;
 import com.android.messaging.sms.MmsConfig;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
@@ -192,6 +194,8 @@ public class DataModelImpl extends DataModel {
         LogUtil.w(LogUtil.BUGLE_TAG, "Rebuilt databases: reseting related state");
         // Clear other things that implicitly reference the DB
         SyncManager.resetLastSyncTimestamps();
+        OtpRuleRepository.seedBuiltInRules(db);
+        SmsCategoryRepository.seedBuiltInData(db);
     }
 
     @Override
