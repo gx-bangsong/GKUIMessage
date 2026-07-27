@@ -169,4 +169,10 @@
 
     </com.android.messaging.ui.conversation.ConversationMessageBubbleView>
 
+    <com.android.messaging.ui.card.SmsCardView
+        android:id="@+id/sms_card_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
 </com.android.messaging.ui.conversation.ConversationMessageView>

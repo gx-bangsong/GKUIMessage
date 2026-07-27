@@ -19,6 +19,8 @@ package com.android.messaging.ui.conversationlist;
 import android.app.Activity;
 import android.content.Context;
 import android.database.Cursor;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
@@ -33,6 +35,8 @@ import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewPropertyAnimator;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.AbsListView;
+import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.core.view.ViewGroupCompat;
@@ -42,6 +46,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.messaging.R;
+import com.android.messaging.category.SmsCategory;
+import com.android.messaging.category.SmsCategoryRepository;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.binding.Binding;
 import com.android.messaging.datamodel.binding.BindingBase;
@@ -54,11 +60,17 @@ import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.AccessibilityUtil;
 import com.android.messaging.util.ImeUtil;
 import com.android.messaging.util.LogUtil;
+import com.android.messaging.util.ThreadUtil;
 import com.android.messaging.util.UiUtils;
+import com.google.android.material.chip.Chip;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Shows a list of conversations.
@@ -90,6 +102,15 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     private ExtendedFloatingActionButton mStartNewConversationButton;
     private ListEmptyView mEmptyListMessageView;
     private ConversationListAdapter mAdapter;
+    private View mCategoryStrip;
+    private HorizontalScrollView mCategoryScrollView;
+    private LinearLayout mCategoryChipContainer;
+    private final ArrayList<SmsCategory> mCategories = new ArrayList<>();
+    private final ExecutorService mCategoryExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        final Thread thread = new Thread(runnable, "SmsCategoryChips");
+        thread.setPriority(Thread.MIN_PRIORITY);
+        return thread;
+    });
 
     // Saved Instance State Data - only for temporal data which is nice to maintain but not
     // critical for correctness.
@@ -124,7 +145,7 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     public void onCreate(final Bundle bundle) {
         super.onCreate(bundle);
         mListBinding.getData().init(LoaderManager.getInstance(this), mListBinding);
-        mAdapter = new ConversationListAdapter(getActivity(), null, this);
+        mAdapter = new ConversationListAdapter(this);
     }
 
     @Override
@@ -135,6 +156,7 @@ public class ConversationListFragment extends Fragment implements ConversationLi
         setScrolledToNewestConversationIfNeeded();
 
         updateUi();
+        loadCategories();
     }
 
     public void setScrolledToNewestConversationIfNeeded() {
@@ -159,6 +181,7 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     public void onDestroy() {
         super.onDestroy();
         mListBinding.unbind();
+        mCategoryExecutor.shutdownNow();
         mHost = null;
     }
 
@@ -172,6 +195,9 @@ public class ConversationListFragment extends Fragment implements ConversationLi
                 container, false);
         mRecyclerView = rootView.findViewById(android.R.id.list);
         mEmptyListMessageView = rootView.findViewById(R.id.no_conversations_view);
+        mCategoryStrip = rootView.findViewById(R.id.category_chip_strip);
+        mCategoryScrollView = rootView.findViewById(R.id.category_chip_scroll);
+        mCategoryChipContainer = rootView.findViewById(R.id.category_chip_container);
         mEmptyListMessageView.setImageHint(R.drawable.ic_oobe_conv_list);
         // The default behavior for default layout param generation by LinearLayoutManager is to
         // provide width and height of WRAP_CONTENT, but this is not desirable for
@@ -188,6 +214,15 @@ public class ConversationListFragment extends Fragment implements ConversationLi
         mRecyclerView.setLayoutManager(manager);
         mRecyclerView.setHasFixedSize(true);
         mRecyclerView.setAdapter(mAdapter);
+        mAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override public void onChanged() { updateEmptyListUi(mAdapter.getItemCount() == 0); }
+            @Override public void onItemRangeInserted(final int start, final int count) {
+                updateEmptyListUi(mAdapter.getItemCount() == 0);
+            }
+            @Override public void onItemRangeRemoved(final int start, final int count) {
+                updateEmptyListUi(mAdapter.getItemCount() == 0);
+            }
+        });
         mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             int mCurrentState = AbsListView.OnScrollListener.SCROLL_STATE_IDLE;
 
@@ -226,6 +261,10 @@ public class ConversationListFragment extends Fragment implements ConversationLi
             mStartNewConversationButton.setVisibility(View.VISIBLE);
             mStartNewConversationButton.setOnClickListener(clickView ->
                     mHost.onCreateConversationClick());
+        }
+
+        if (mArchiveMode || mForwardMessageMode) {
+            mCategoryStrip.setVisibility(View.GONE);
         }
 
         // The root view has a non-null background, which by default is deemed by the framework
@@ -270,10 +309,111 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     public void onConversationListCursorUpdated(final ConversationListData data,
             final Cursor cursor) {
         mListBinding.ensureBound(data);
-        final Cursor oldCursor = mAdapter.swapCursor(cursor);
+        final boolean hadNoRows = mAdapter.getItemCount() == 0;
+        mAdapter.submitCursor(cursor);
         updateEmptyListUi(cursor == null || cursor.getCount() == 0);
-        if (mListState != null && cursor != null && oldCursor == null) {
-            mRecyclerView.getLayoutManager().onRestoreInstanceState(mListState);
+        buildCategoryChips();
+        if (mListState != null && cursor != null && hadNoRows) {
+            mRecyclerView.post(() -> mRecyclerView.getLayoutManager().onRestoreInstanceState(
+                    mListState));
+        }
+    }
+
+    private void loadCategories() {
+        if (mArchiveMode || mForwardMessageMode || !isAdded()) {
+            return;
+        }
+        mCategoryExecutor.execute(() -> {
+            final List<SmsCategory> categories = SmsCategoryRepository.getCategories(false);
+            ThreadUtil.getMainThreadHandler().post(() -> {
+                if (!isAdded()) {
+                    return;
+                }
+                mCategories.clear();
+                mCategories.addAll(categories);
+                buildCategoryChips();
+            });
+        });
+    }
+
+    private void buildCategoryChips() {
+        if (mCategoryChipContainer == null || mArchiveMode || mForwardMessageMode) {
+            return;
+        }
+        mCategoryChipContainer.removeAllViews();
+        if (mCategories.size() <= 1) {
+            mCategoryStrip.setVisibility(View.GONE);
+            return;
+        }
+        mCategoryStrip.setVisibility(View.VISIBLE);
+        final Map<Integer, Integer> unreadCounts = new HashMap<>();
+        int allUnread = 0;
+        for (final ConversationListItemData item : mAdapter.getAllConversations()) {
+            if (!item.getIsRead()) {
+                allUnread++;
+                unreadCounts.put(item.getCategoryId(), unreadCounts.getOrDefault(item.getCategoryId(), 0)
+                        + 1);
+            }
+        }
+        boolean selectedStillAvailable = false;
+        for (final SmsCategory category : mCategories) {
+            if (category.id == mAdapter.getCategoryFilter()) {
+                selectedStillAvailable = true;
+            }
+        }
+        if (!selectedStillAvailable) {
+            mAdapter.setCategoryFilter(SmsCategoryRepository.ALL_CATEGORY_ID);
+        }
+        for (final SmsCategory category : mCategories) {
+            final int unread = category.id == SmsCategoryRepository.ALL_CATEGORY_ID ? allUnread
+                    : unreadCounts.getOrDefault(category.id, 0);
+            final Chip chip = createCategoryChip(category, unread);
+            mCategoryChipContainer.addView(chip);
+        }
+    }
+
+    private Chip createCategoryChip(final SmsCategory category, final int unread) {
+        final Chip chip = new Chip(requireContext(), null,
+                com.google.android.material.R.attr.chipFilterStyle);
+        final int horizontalMargin = (int) (8 * getResources().getDisplayMetrics().density);
+        final LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(horizontalMargin, 0, 0, 0);
+        chip.setLayoutParams(params);
+        chip.setCheckable(true);
+        chip.setChecked(category.id == mAdapter.getCategoryFilter());
+        chip.setChipIconResource(iconForCategory(category.icon));
+        chip.setChipIconVisible(true);
+        chip.setText(unread > 0 ? getString(R.string.category_chip_unread_count, category.name, unread)
+                : category.name);
+        final int selectedColor = category.color;
+        chip.setChipBackgroundColor(new ColorStateList(new int[][] {
+                new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {selectedColor, Color.TRANSPARENT}));
+        chip.setChipStrokeColor(ColorStateList.valueOf(selectedColor));
+        chip.setChipStrokeWidth(1f);
+        chip.setOnClickListener(view -> {
+            mAdapter.setCategoryFilter(category.id);
+            buildCategoryChips();
+            mCategoryScrollView.post(() -> mCategoryScrollView.smoothScrollTo(
+                    Math.max(0, chip.getLeft() - horizontalMargin), 0));
+        });
+        return chip;
+    }
+
+    private int iconForCategory(final String icon) {
+        switch (icon) {
+            case "person":
+                return R.drawable.ic_person_light;
+            case "key":
+            case "account_balance":
+            case "local_shipping":
+            case "campaign":
+            case "notifications":
+                return R.drawable.ic_info_light;
+            case "all":
+            default:
+                return R.drawable.ic_message;
         }
     }
 
@@ -286,7 +426,7 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     }
 
     public void updateUi() {
-        mAdapter.notifyDataSetChanged();
+        mAdapter.notifyItemRangeChanged(0, mAdapter.getItemCount());
     }
 
     @Override

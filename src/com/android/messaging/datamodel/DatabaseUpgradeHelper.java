@@ -19,6 +19,8 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.android.messaging.Factory;
+import com.android.messaging.category.SmsCategoryRepository;
+import com.android.messaging.otp.OtpRuleRepository;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.LogUtil;
 
@@ -48,6 +50,15 @@ public class DatabaseUpgradeHelper {
         if (currentVersion < 2) {
             currentVersion = upgradeToVersion2(db);
         }
+        if (currentVersion < 3) {
+            currentVersion = upgradeToVersion3(db);
+        }
+        if (currentVersion < 4) {
+            currentVersion = upgradeToVersion4(db);
+        }
+        if (currentVersion < 5) {
+            currentVersion = upgradeToVersion5(db);
+        }
         // Rebuild all the views
         final Context context = Factory.get().getApplicationContext();
         DatabaseHelper.dropAllViews(db);
@@ -61,6 +72,77 @@ public class DatabaseUpgradeHelper {
                 DatabaseHelper.ConversationColumns.IS_ENTERPRISE + " INT DEFAULT(0)");
         LogUtil.i(TAG, "Ugraded database to version 2");
         return 2;
+    }
+
+    private int upgradeToVersion3(final SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE " + DatabaseHelper.OTP_RULES_TABLE + "("
+                + DatabaseHelper.OtpRuleColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + DatabaseHelper.OtpRuleColumns.NAME + " TEXT NOT NULL, "
+                + DatabaseHelper.OtpRuleColumns.PATTERN + " TEXT NOT NULL, "
+                + DatabaseHelper.OtpRuleColumns.PRIORITY + " INTEGER NOT NULL, "
+                + DatabaseHelper.OtpRuleColumns.ENABLED + " INTEGER NOT NULL DEFAULT 1, "
+                + DatabaseHelper.OtpRuleColumns.IS_BUILT_IN + " INTEGER NOT NULL DEFAULT 0);");
+        db.execSQL("CREATE INDEX index_" + DatabaseHelper.OTP_RULES_TABLE + "_priority ON "
+                + DatabaseHelper.OTP_RULES_TABLE + "(" + DatabaseHelper.OtpRuleColumns.PRIORITY
+                + ", " + DatabaseHelper.OtpRuleColumns._ID + ")");
+        OtpRuleRepository.seedBuiltInRules(db);
+        LogUtil.i(TAG, "Upgraded database to version 3");
+        return 3;
+    }
+
+    private int upgradeToVersion4(final SQLiteDatabase db) {
+        db.execSQL("ALTER TABLE " + DatabaseHelper.CONVERSATIONS_TABLE + " ADD COLUMN "
+                + DatabaseHelper.ConversationColumns.CATEGORY_ID + " INT DEFAULT(1)");
+        db.execSQL("ALTER TABLE " + DatabaseHelper.CONVERSATIONS_TABLE + " ADD COLUMN "
+                + DatabaseHelper.ConversationColumns.CLASSIFIED_AT + " INT DEFAULT(0)");
+        db.execSQL("CREATE TABLE " + DatabaseHelper.SMS_CATEGORIES_TABLE + "("
+                + DatabaseHelper.CategoryColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + DatabaseHelper.CategoryColumns.NAME + " TEXT NOT NULL, "
+                + DatabaseHelper.CategoryColumns.TYPE + " TEXT NOT NULL, "
+                + DatabaseHelper.CategoryColumns.COLOR + " INTEGER NOT NULL, "
+                + DatabaseHelper.CategoryColumns.ICON + " TEXT NOT NULL, "
+                + DatabaseHelper.CategoryColumns.ENABLED + " INTEGER NOT NULL DEFAULT 1, "
+                + DatabaseHelper.CategoryColumns.SORT_ORDER + " INTEGER NOT NULL, "
+                + DatabaseHelper.CategoryColumns.IS_BUILT_IN + " INTEGER NOT NULL DEFAULT 0)");
+        db.execSQL("CREATE TABLE " + DatabaseHelper.SMS_CATEGORY_RULES_TABLE + "("
+                + DatabaseHelper.CategoryRuleColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + DatabaseHelper.CategoryRuleColumns.CATEGORY_ID + " INTEGER NOT NULL, "
+                + DatabaseHelper.CategoryRuleColumns.MATCH_TYPE + " TEXT NOT NULL, "
+                + DatabaseHelper.CategoryRuleColumns.VALUE + " TEXT NOT NULL, "
+                + DatabaseHelper.CategoryRuleColumns.WEIGHT + " INTEGER NOT NULL DEFAULT 0, "
+                + DatabaseHelper.CategoryRuleColumns.ENABLED + " INTEGER NOT NULL DEFAULT 1, "
+                + "FOREIGN KEY(" + DatabaseHelper.CategoryRuleColumns.CATEGORY_ID + ") REFERENCES "
+                + DatabaseHelper.SMS_CATEGORIES_TABLE + "(" + DatabaseHelper.CategoryColumns._ID
+                + ") ON DELETE CASCADE)");
+        db.execSQL("CREATE INDEX index_" + DatabaseHelper.SMS_CATEGORIES_TABLE + "_sort ON "
+                + DatabaseHelper.SMS_CATEGORIES_TABLE + "(" + DatabaseHelper.CategoryColumns.SORT_ORDER
+                + ", " + DatabaseHelper.CategoryColumns._ID + ")");
+        db.execSQL("CREATE INDEX index_" + DatabaseHelper.SMS_CATEGORY_RULES_TABLE + "_category ON "
+                + DatabaseHelper.SMS_CATEGORY_RULES_TABLE + "("
+                + DatabaseHelper.CategoryRuleColumns.CATEGORY_ID + ")");
+        SmsCategoryRepository.seedBuiltInData(db);
+        LogUtil.i(TAG, "Upgraded database to version 4");
+        return 4;
+    }
+
+    private int upgradeToVersion5(final SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE " + DatabaseHelper.SMS_CARDS_TABLE + "("
+                + DatabaseHelper.SmsCardColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + DatabaseHelper.SmsCardColumns.MESSAGE_ID + " INTEGER NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.THREAD_ID + " INTEGER NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.CARD_TYPE + " TEXT NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.CARD_DATA + " TEXT NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.RAW_TEXT + " TEXT NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.CONFIDENCE + " REAL NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.PARSED_AT + " INTEGER NOT NULL, "
+                + DatabaseHelper.SmsCardColumns.IS_EXPANDED + " INTEGER NOT NULL DEFAULT 0, "
+                + "UNIQUE(" + DatabaseHelper.SmsCardColumns.MESSAGE_ID + ", "
+                + DatabaseHelper.SmsCardColumns.CARD_TYPE + "))");
+        db.execSQL("CREATE INDEX index_" + DatabaseHelper.SMS_CARDS_TABLE + "_message ON "
+                + DatabaseHelper.SMS_CARDS_TABLE + "(" + DatabaseHelper.SmsCardColumns.MESSAGE_ID
+                + ", " + DatabaseHelper.SmsCardColumns.CONFIDENCE + ")");
+        LogUtil.i(TAG, "Upgraded database to version 5");
+        return 5;
     }
 
     /**

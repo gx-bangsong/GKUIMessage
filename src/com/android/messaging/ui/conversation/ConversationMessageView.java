@@ -63,6 +63,7 @@ import com.android.messaging.ui.MultiAttachmentLayout.OnAttachmentClickListener;
 import com.android.messaging.ui.PersonItemView;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.ui.VideoThumbnailView;
+import com.android.messaging.ui.card.SmsCardView;
 import com.android.messaging.util.AccessibilityUtil;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.AvatarUriUtil;
@@ -111,6 +112,7 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
     private ViewGroup mMessageMetadataView;
     private ViewGroup mMessageTextAndInfoView;
     private TextView mSimNameView;
+    private SmsCardView mSmsCardView;
 
     private boolean mOneOnOne;
     private ConversationMessageViewHost mHost;
@@ -155,6 +157,7 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         mMessageMetadataView = findViewById(R.id.message_metadata);
         mMessageTextAndInfoView = findViewById(R.id.message_text_and_info);
         mSimNameView = findViewById(R.id.sim_name);
+        mSmsCardView = findViewById(R.id.sms_card_view);
     }
 
     @Override
@@ -180,9 +183,15 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
                 MeasureSpec.AT_MOST);
 
         mMessageBubble.measure(messageContentWidthMeasureSpec, unspecifiedMeasureSpec);
+        int cardHeight = 0;
+        if (mSmsCardView.getVisibility() == VISIBLE) {
+            mSmsCardView.measure(messageContentWidthMeasureSpec, unspecifiedMeasureSpec);
+            cardHeight = mSmsCardView.getMeasuredHeight()
+                    + getResources().getDimensionPixelSize(R.dimen.sms_card_message_gap);
+        }
 
-        final int maxHeight = Math.max(mContactIconView.getMeasuredHeight(),
-                mMessageBubble.getMeasuredHeight());
+        final int contentHeight = cardHeight + mMessageBubble.getMeasuredHeight();
+        final int maxHeight = Math.max(mContactIconView.getMeasuredHeight(), contentHeight);
         setMeasuredDimension(horizontalSpace, maxHeight + getPaddingBottom() + getPaddingTop());
     }
 
@@ -195,6 +204,8 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         final int iconHeight = mContactIconView.getMeasuredHeight();
         final int iconTop = getPaddingTop();
         final int contentWidth = (right -left) - iconWidth - getPaddingStart() - getPaddingEnd();
+        final int cardGap = mSmsCardView.getVisibility() == VISIBLE
+                ? getResources().getDimensionPixelSize(R.dimen.sms_card_message_gap) : 0;
         final int contentHeight = mMessageBubble.getMeasuredHeight();
         final int contentTop = iconTop;
 
@@ -220,8 +231,15 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
 
         mContactIconView.layout(iconLeft, iconTop, iconLeft + iconWidth, iconTop + iconHeight);
 
-        mMessageBubble.layout(contentLeft, contentTop, contentLeft + contentWidth,
-                contentTop + contentHeight);
+        int bubbleTop = contentTop;
+        if (mSmsCardView.getVisibility() == VISIBLE) {
+            final int cardHeight = mSmsCardView.getMeasuredHeight();
+            mSmsCardView.layout(contentLeft, contentTop, contentLeft + contentWidth,
+                    contentTop + cardHeight);
+            bubbleTop += cardHeight + cardGap;
+        }
+        mMessageBubble.layout(contentLeft, bubbleTop, contentLeft + contentWidth,
+                bubbleTop + contentHeight);
     }
 
     /**
@@ -244,6 +262,11 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
 
         // Update our UI model
         mData.bind(cursor);
+        try {
+            mSmsCardView.bind(Long.parseLong(mData.getMessageId()));
+        } catch (final NumberFormatException exception) {
+            mSmsCardView.setVisibility(GONE);
+        }
         setSelected(TextUtils.equals(mData.getMessageId(), selectedMessageId));
 
         // Update text and image content for the view.

@@ -56,9 +56,121 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String PARTS_TABLE = "parts";
     public static final String PARTICIPANTS_TABLE = "participants";
     public static final String CONVERSATION_PARTICIPANTS_TABLE = "conversation_participants";
+    /** Local OTP recognition rules. */
+    public static final String OTP_RULES_TABLE = "otp_rules";
+    /** Locally configurable SMS conversation categories. */
+    public static final String SMS_CATEGORIES_TABLE = "sms_categories";
+    /** Local keyword, regex, and sender-prefix rules for SMS categories. */
+    public static final String SMS_CATEGORY_RULES_TABLE = "sms_category_rules";
+    /** Local structured cards parsed from service SMS bodies. */
+    public static final String SMS_CARDS_TABLE = "sms_cards";
 
     // Views
     static final String DRAFT_PARTS_VIEW = "draft_parts_view";
+
+    /** Schema for local OTP regular-expression rules. */
+    public static class OtpRuleColumns implements BaseColumns {
+        public static final String NAME = "name";
+        public static final String PATTERN = "pattern";
+        public static final String PRIORITY = "priority";
+        public static final String ENABLED = "enabled";
+        public static final String IS_BUILT_IN = "is_built_in";
+    }
+
+    private static final String CREATE_OTP_RULES_TABLE_SQL =
+            "CREATE TABLE " + OTP_RULES_TABLE + "("
+                    + OtpRuleColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + OtpRuleColumns.NAME + " TEXT NOT NULL, "
+                    + OtpRuleColumns.PATTERN + " TEXT NOT NULL, "
+                    + OtpRuleColumns.PRIORITY + " INTEGER NOT NULL, "
+                    + OtpRuleColumns.ENABLED + " INTEGER NOT NULL DEFAULT 1, "
+                    + OtpRuleColumns.IS_BUILT_IN + " INTEGER NOT NULL DEFAULT 0"
+                    + ");";
+
+    private static final String OTP_RULES_PRIORITY_INDEX_SQL =
+            "CREATE INDEX index_" + OTP_RULES_TABLE + "_priority ON " + OTP_RULES_TABLE
+                    + "(" + OtpRuleColumns.PRIORITY + ", " + OtpRuleColumns._ID + ")";
+
+    /** Schema for a local SMS category. */
+    public static class CategoryColumns implements BaseColumns {
+        public static final String NAME = "name";
+        public static final String TYPE = "type";
+        public static final String COLOR = "color";
+        public static final String ICON = "icon";
+        public static final String ENABLED = "enabled";
+        public static final String SORT_ORDER = "sort_order";
+        public static final String IS_BUILT_IN = "is_built_in";
+    }
+
+    /** Schema for one SMS category matching rule. */
+    public static class CategoryRuleColumns implements BaseColumns {
+        public static final String CATEGORY_ID = "category_id";
+        public static final String MATCH_TYPE = "match_type";
+        public static final String VALUE = "value";
+        public static final String WEIGHT = "weight";
+        public static final String ENABLED = "enabled";
+    }
+
+    private static final String CREATE_SMS_CATEGORIES_TABLE_SQL =
+            "CREATE TABLE " + SMS_CATEGORIES_TABLE + "("
+                    + CategoryColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + CategoryColumns.NAME + " TEXT NOT NULL, "
+                    + CategoryColumns.TYPE + " TEXT NOT NULL, "
+                    + CategoryColumns.COLOR + " INTEGER NOT NULL, "
+                    + CategoryColumns.ICON + " TEXT NOT NULL, "
+                    + CategoryColumns.ENABLED + " INTEGER NOT NULL DEFAULT 1, "
+                    + CategoryColumns.SORT_ORDER + " INTEGER NOT NULL, "
+                    + CategoryColumns.IS_BUILT_IN + " INTEGER NOT NULL DEFAULT 0"
+                    + ");";
+
+    private static final String CREATE_SMS_CATEGORY_RULES_TABLE_SQL =
+            "CREATE TABLE " + SMS_CATEGORY_RULES_TABLE + "("
+                    + CategoryRuleColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + CategoryRuleColumns.CATEGORY_ID + " INTEGER NOT NULL, "
+                    + CategoryRuleColumns.MATCH_TYPE + " TEXT NOT NULL, "
+                    + CategoryRuleColumns.VALUE + " TEXT NOT NULL, "
+                    + CategoryRuleColumns.WEIGHT + " INTEGER NOT NULL DEFAULT 0, "
+                    + CategoryRuleColumns.ENABLED + " INTEGER NOT NULL DEFAULT 1, "
+                    + "FOREIGN KEY(" + CategoryRuleColumns.CATEGORY_ID + ") REFERENCES "
+                    + SMS_CATEGORIES_TABLE + "(" + CategoryColumns._ID + ") ON DELETE CASCADE"
+                    + ");";
+
+    private static final String SMS_CATEGORIES_SORT_INDEX_SQL =
+            "CREATE INDEX index_" + SMS_CATEGORIES_TABLE + "_sort ON " + SMS_CATEGORIES_TABLE
+                    + "(" + CategoryColumns.SORT_ORDER + ", " + CategoryColumns._ID + ")";
+    private static final String SMS_CATEGORY_RULES_CATEGORY_INDEX_SQL =
+            "CREATE INDEX index_" + SMS_CATEGORY_RULES_TABLE + "_category ON "
+                    + SMS_CATEGORY_RULES_TABLE + "(" + CategoryRuleColumns.CATEGORY_ID + ")";
+
+    /** Schema for a locally parsed service-SMS card. */
+    public static class SmsCardColumns implements BaseColumns {
+        public static final String MESSAGE_ID = "message_id";
+        public static final String THREAD_ID = "thread_id";
+        public static final String CARD_TYPE = "card_type";
+        public static final String CARD_DATA = "card_data";
+        public static final String RAW_TEXT = "raw_text";
+        public static final String CONFIDENCE = "confidence";
+        public static final String PARSED_AT = "parsed_at";
+        public static final String IS_EXPANDED = "is_expanded";
+    }
+
+    private static final String CREATE_SMS_CARDS_TABLE_SQL =
+            "CREATE TABLE " + SMS_CARDS_TABLE + "("
+                    + SmsCardColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + SmsCardColumns.MESSAGE_ID + " INTEGER NOT NULL, "
+                    + SmsCardColumns.THREAD_ID + " INTEGER NOT NULL, "
+                    + SmsCardColumns.CARD_TYPE + " TEXT NOT NULL, "
+                    + SmsCardColumns.CARD_DATA + " TEXT NOT NULL, "
+                    + SmsCardColumns.RAW_TEXT + " TEXT NOT NULL, "
+                    + SmsCardColumns.CONFIDENCE + " REAL NOT NULL, "
+                    + SmsCardColumns.PARSED_AT + " INTEGER NOT NULL, "
+                    + SmsCardColumns.IS_EXPANDED + " INTEGER NOT NULL DEFAULT 0, "
+                    + "UNIQUE(" + SmsCardColumns.MESSAGE_ID + ", " + SmsCardColumns.CARD_TYPE + ")"
+                    + ");";
+
+    private static final String SMS_CARDS_MESSAGE_INDEX_SQL =
+            "CREATE INDEX index_" + SMS_CARDS_TABLE + "_message ON " + SMS_CARDS_TABLE
+                    + "(" + SmsCardColumns.MESSAGE_ID + ", " + SmsCardColumns.CONFIDENCE + ")";
 
     // Conversations table schema
     public static class ConversationColumns implements BaseColumns {
@@ -139,6 +251,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         // A conversation is enterprise if one of the participant is a enterprise contact.
         public static final String IS_ENTERPRISE = "IS_ENTERPRISE";
+
+        /** Cached local category identifier; 1 is ALL / unclassified. */
+        public static final String CATEGORY_ID = "category_id";
+        /** Epoch millis of the latest local category calculation. */
+        public static final String CLASSIFIED_AT = "classified_at";
     }
 
     // Conversation table SQL
@@ -170,7 +287,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     + ConversationColumns.PARTICIPANT_COUNT + " INT DEFAULT(0), "
                     + ConversationColumns.INCLUDE_EMAIL_ADDRESS + " INT DEFAULT(0), "
                     + ConversationColumns.SMS_SERVICE_CENTER + " TEXT ,"
-                    + ConversationColumns.IS_ENTERPRISE + " INT DEFAULT(0)"
+                    + ConversationColumns.IS_ENTERPRISE + " INT DEFAULT(0), "
+                    + ConversationColumns.CATEGORY_ID + " INT DEFAULT(1), "
+                    + ConversationColumns.CLASSIFIED_AT + " INT DEFAULT(0)"
                     + ");";
 
     private static final String CONVERSATIONS_TABLE_SMS_THREAD_ID_INDEX_SQL =
@@ -519,6 +638,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         CREATE_PARTS_TABLE_SQL,
         CREATE_PARTICIPANTS_TABLE_SQL,
         CREATE_CONVERSATION_PARTICIPANTS_TABLE_SQL,
+        CREATE_OTP_RULES_TABLE_SQL,
+        CREATE_SMS_CATEGORIES_TABLE_SQL,
+        CREATE_SMS_CATEGORY_RULES_TABLE_SQL,
+        CREATE_SMS_CARDS_TABLE_SQL,
     };
 
     // List of all our indices
@@ -530,6 +653,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         MESSAGES_TABLE_STATUS_SEEN_INDEX_SQL,
         PARTS_TABLE_MESSAGE_INDEX_SQL,
         CONVERSATION_PARTICIPANTS_TABLE_CONVERSATION_ID_INDEX_SQL,
+        OTP_RULES_PRIORITY_INDEX_SQL,
+        SMS_CATEGORIES_SORT_INDEX_SQL,
+        SMS_CATEGORY_RULES_CATEGORY_INDEX_SQL,
+        SMS_CARDS_MESSAGE_INDEX_SQL,
     };
 
     // List of all our SQL triggers

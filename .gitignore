@@ -1,0 +1,5 @@
+# Local Gradle/Android Studio outputs for the optional dual-build companion.
+.gradle/
+gradle-app/build/
+smart-sms-core/build/
+local.properties

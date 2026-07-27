@@ -56,7 +56,10 @@ messaging_java_defaults {
 android_app {
     name: "messaging",
 
-    srcs: ["src/**/*.java"],
+    srcs: [
+        "src/**/*.java",
+        "smart-sms-core/src/main/java/**/*.java",
+    ],
 
     defaults: ["messaging_defaults"],
 

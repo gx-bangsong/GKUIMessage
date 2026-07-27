@@ -17,6 +17,7 @@
 package com.android.messaging.ui.conversationlist;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -60,6 +61,7 @@ import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.Typefaces;
 import com.android.messaging.util.UiUtils;
 import com.android.messaging.util.UriUtil;
+import com.google.android.material.chip.Chip;
 
 import org.lineageos.messaging.util.PrefsUtils;
 
@@ -115,7 +117,7 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
         }
     };
 
-    private final ConversationListItemData mData;
+    private ConversationListItemData mData;
 
     private int mAnimatingCount;
     private ViewGroup mSwipeableContainer;
@@ -133,6 +135,8 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
     private ImageView mCrossSwipeArchiveRightImageView;
     private AsyncImageView mImagePreviewView;
     private AudioAttachmentView mAudioAttachmentView;
+    private Chip mCategoryChip;
+    private boolean mShowCategoryChip;
     private HostInterface mHostInterface;
 
     public ConversationListItemView(final Context context, final AttributeSet attrs) {
@@ -159,6 +163,7 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
         mCrossSwipeArchiveRightImageView = findViewById(R.id.crossSwipeArchiveIconRight);
         mImagePreviewView = findViewById(R.id.conversation_image_preview);
         mAudioAttachmentView = findViewById(R.id.audio_attachment_view);
+        mCategoryChip = findViewById(R.id.conversation_category_chip);
         mConversationNameView.addOnLayoutChangeListener(this);
         mSnippetTextView.addOnLayoutChangeListener(this);
 
@@ -362,9 +367,21 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
      * entry.
      */
     public void bind(final Cursor cursor, final HostInterface hostInterface) {
+        mData.bind(cursor);
+        bindInternal(hostInterface, false /* showCategoryChip */);
+    }
+
+    /** Binds a stable list snapshot, allowing ListAdapter/DiffUtil category filtering. */
+    public void bind(final ConversationListItemData data, final HostInterface hostInterface,
+            final boolean showCategoryChip) {
+        mData = data;
+        bindInternal(hostInterface, showCategoryChip);
+    }
+
+    private void bindInternal(final HostInterface hostInterface, final boolean showCategoryChip) {
         // Update our UI model
         mHostInterface = hostInterface;
-        mData.bind(cursor);
+        mShowCategoryChip = showCategoryChip;
 
         resetAnimatingState();
 
@@ -434,6 +451,8 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
                 mTimestampTextView.setText(formattedTimestamp);
             }
         }
+
+        setCategoryChip();
 
         final boolean isSelected = mHostInterface.isConversationSelected(mData.getConversationId());
         setSelected(isSelected);
@@ -512,6 +531,21 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
             mCrossSwipeArchiveLeftImageView.setImageDrawable(archiveDrawable);
             mCrossSwipeArchiveRightImageView.setImageDrawable(archiveDrawable);
         }
+    }
+
+    private void setCategoryChip() {
+        if (!mShowCategoryChip || mData.getCategoryId() == 1
+                || TextUtils.isEmpty(mData.getCategoryName())) {
+            mCategoryChip.setVisibility(GONE);
+            return;
+        }
+        mCategoryChip.setText(mData.getCategoryName());
+        final int color = mData.getCategoryColor();
+        if (color != 0) {
+            mCategoryChip.setChipBackgroundColor(ColorStateList.valueOf(color));
+            mCategoryChip.setTextColor(Color.WHITE);
+        }
+        mCategoryChip.setVisibility(VISIBLE);
     }
 
     public boolean isSwipeAnimatable() {

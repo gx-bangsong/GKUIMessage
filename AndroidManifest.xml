@@ -186,6 +186,60 @@
             android:theme="@style/BugleTheme.SettingsActivity" />
 
         <activity
+            android:name=".ui.cardsettings.SmsCardSettingsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/sms_card_settings_title"
+            android:parentActivityName="com.android.messaging.ui.appsettings.ApplicationSettingsActivity"
+            android:screenOrientation="user"
+            android:theme="@style/BugleTheme.SettingsActivity" />
+
+        <activity
+            android:name=".ui.card.SmsCardHistoryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/sms_card_history_title"
+            android:parentActivityName="com.android.messaging.ui.cardsettings.SmsCardSettingsActivity"
+            android:screenOrientation="user"
+            android:theme="@style/BugleTheme.SettingsActivity" />
+
+        <activity
+            android:name=".ui.category.CategorySettingsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/category_settings_title"
+            android:parentActivityName="com.android.messaging.ui.appsettings.ApplicationSettingsActivity"
+            android:screenOrientation="user"
+            android:theme="@style/BugleTheme.SettingsActivity" />
+
+        <activity
+            android:name=".ui.category.CategoryRuleEditActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/category_rule_edit_title"
+            android:parentActivityName="com.android.messaging.ui.category.CategorySettingsActivity"
+            android:screenOrientation="user"
+            android:theme="@style/BugleTheme.SettingsActivity" />
+
+        <activity
+            android:name=".ui.otp.OtpSettingsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/otp_settings_title"
+            android:parentActivityName="com.android.messaging.ui.appsettings.ApplicationSettingsActivity"
+            android:screenOrientation="user"
+            android:theme="@style/BugleTheme.SettingsActivity" />
+
+        <activity
+            android:name=".ui.otp.OtpRuleEditActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:label="@string/otp_rule_edit_title"
+            android:parentActivityName="com.android.messaging.ui.otp.OtpSettingsActivity"
+            android:screenOrientation="user"
+            android:theme="@style/BugleTheme.SettingsActivity" />
+
+        <activity
             android:name=".ui.appsettings.ApplicationSettingsActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
@@ -370,6 +424,16 @@
                 <data android:scheme="content" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".card.SmsCardParsingService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".category.CategoryReclassificationService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <service
             android:name=".datamodel.NoConfirmationSmsSendService"

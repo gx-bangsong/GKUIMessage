@@ -213,6 +213,24 @@ public final class SmsReceiver extends BroadcastReceiver {
         return messages;
     }
 
+    /**
+     * Returns the complete text for this delivered SMS PDU set. This is intentionally used only
+     * by the receive path; it does not query or rescan the SMS provider.
+     */
+    public static String getIncomingSmsBody(final Intent intent) {
+        final android.telephony.SmsMessage[] messages = getMessagesFromIntent(intent);
+        if (messages == null) {
+            return null;
+        }
+        final StringBuilder body = new StringBuilder();
+        for (final android.telephony.SmsMessage message : messages) {
+            if (message != null && message.getMessageBody() != null) {
+                body.append(message.getMessageBody());
+            }
+        }
+        return body.toString();
+    }
+
 
     /**
      * Check the specified SMS intent to see if the message should be ignored
