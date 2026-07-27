@@ -1,0 +1,123 @@
+name: Assemble Debug APK
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'res/**'
+      - 'assets/**'
+      - 'AndroidManifest.xml'
+      - 'gradle-app/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/assemble-debug.yml'
+
+  workflow_dispatch:
+    inputs:
+      aosp_deps_url:
+        description: 'Optional ZIP URL overriding AOSP_DEPS_URL'
+        required: false
+        type: string
+      aosp_deps_sha256:
+        description: 'Optional SHA-256 overriding AOSP_DEPS_SHA256'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  assemble-debug:
+    name: Gradle assembleDebug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    env:
+      AOSP_DEPS_URL: ${{ inputs.aosp_deps_url || vars.AOSP_DEPS_URL || secrets.AOSP_DEPS_URL }}
+      AOSP_DEPS_SHA256: ${{ inputs.aosp_deps_sha256 || vars.AOSP_DEPS_SHA256 || secrets.AOSP_DEPS_SHA256 }}
+      AOSP_DEPS_DIR: ${{ runner.temp }}/aosp-gradle-deps
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 build platform
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install \
+            'platform-tools' \
+            'platforms;android-35' \
+            'build-tools;35.0.0'
+
+      - name: Download matching AOSP compile dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${AOSP_DEPS_URL}" ]]; then
+            echo "::error::AOSP_DEPS_URL is not configured."
+            exit 1
+          fi
+
+          mkdir -p "${AOSP_DEPS_DIR}"
+
+          curl --fail --location --retry 3 --retry-all-errors \
+            "${AOSP_DEPS_URL}" \
+            --output "${RUNNER_TEMP}/aosp-gradle-deps.zip"
+
+          unzip -q "${RUNNER_TEMP}/aosp-gradle-deps.zip" -d "${AOSP_DEPS_DIR}"
+
+          if [[ -n "${AOSP_DEPS_SHA256}" ]]; then
+            echo "${AOSP_DEPS_SHA256}  ${RUNNER_TEMP}/aosp-gradle-deps.zip" \
+              | sha256sum --check --strict
+          fi
+
+          for dependency in libchips.jar vcard.jar framework-stubs.jar; do
+            test -f "${AOSP_DEPS_DIR}/${dependency}" || {
+              echo "::error::Missing ${dependency} in AOSP dependency ZIP"
+              exit 1
+            }
+          done
+
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Assemble debug APK
+        shell: bash
+        run: |
+          gradle --no-daemon --stacktrace \
+            -PaospDepsDir="${AOSP_DEPS_DIR}" \
+            :messagingGradle:assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GKUIMessage-debug-apk
+          path: gradle-app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-reports
+          path: |
+            gradle-app/build/reports/**
+            gradle-app/build/outputs/logs/**
+          if-no-files-found: ignore
+          retention-days: 14
