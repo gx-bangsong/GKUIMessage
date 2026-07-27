@@ -1,42 +1,45 @@
-name: Assemble Debug APK
+name: Smart SMS Core CI
 
 on:
   pull_request:
     paths:
-      - 'src/**'
-      - 'res/**'
-      - 'assets/**'
-      - 'AndroidManifest.xml'
-      - 'gradle-app/**'
+      - 'smart-sms-core/**'
+      - 'assets/card_rules/**'
+      - 'src/com/android/messaging/otp/**'
+      - 'src/com/android/messaging/category/**'
+      - 'src/com/android/messaging/card/**'
+      - 'Android.bp'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/assemble-debug.yml'
+
+  push:
+    branches:
+      - lineage-23.2
+      - 'arena/**'
+    paths:
+      - 'smart-sms-core/**'
+      - 'assets/card_rules/**'
+      - 'src/com/android/messaging/otp/**'
+      - 'src/com/android/messaging/category/**'
+      - 'src/com/android/messaging/card/**'
+      - 'Android.bp'
       - 'build.gradle'
       - 'settings.gradle'
       - 'gradle.properties'
       - '.github/workflows/assemble-debug.yml'
 
   workflow_dispatch:
-    inputs:
-      aosp_deps_url:
-        description: 'Optional ZIP URL overriding AOSP_DEPS_URL'
-        required: false
-        type: string
-      aosp_deps_sha256:
-        description: 'Optional SHA-256 overriding AOSP_DEPS_SHA256'
-        required: false
-        type: string
 
 permissions:
   contents: read
 
 jobs:
-  assemble-debug:
-    name: Gradle assembleDebug
+  smart-sms-core:
+    name: Core test and assembleDebug
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    env:
-      AOSP_DEPS_URL: ${{ inputs.aosp_deps_url || vars.AOSP_DEPS_URL || secrets.AOSP_DEPS_URL }}
-      AOSP_DEPS_SHA256: ${{ inputs.aosp_deps_sha256 || vars.AOSP_DEPS_SHA256 || secrets.AOSP_DEPS_SHA256 }}
-      AOSP_DEPS_DIR: ${{ runner.temp }}/aosp-gradle-deps
+    timeout-minutes: 20
 
     steps:
       - name: Check out source
@@ -61,63 +64,33 @@ jobs:
             'platforms;android-35' \
             'build-tools;35.0.0'
 
-      - name: Download matching AOSP compile dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${AOSP_DEPS_URL}" ]]; then
-            echo "::error::AOSP_DEPS_URL is not configured."
-            exit 1
-          fi
-
-          mkdir -p "${AOSP_DEPS_DIR}"
-
-          curl --fail --location --retry 3 --retry-all-errors \
-            "${AOSP_DEPS_URL}" \
-            --output "${RUNNER_TEMP}/aosp-gradle-deps.zip"
-
-          unzip -q "${RUNNER_TEMP}/aosp-gradle-deps.zip" -d "${AOSP_DEPS_DIR}"
-
-          if [[ -n "${AOSP_DEPS_SHA256}" ]]; then
-            echo "${AOSP_DEPS_SHA256}  ${RUNNER_TEMP}/aosp-gradle-deps.zip" \
-              | sha256sum --check --strict
-          fi
-
-          for dependency in libchips.jar vcard.jar framework-stubs.jar; do
-            test -f "${AOSP_DEPS_DIR}/${dependency}" || {
-              echo "::error::Missing ${dependency} in AOSP dependency ZIP"
-              exit 1
-            }
-          done
-
-      - name: Set up Gradle 8.10.2
+      - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.7'
 
-      - name: Assemble debug APK
+      - name: Run unit tests and assemble debug AAR
         shell: bash
         run: |
           gradle --no-daemon --stacktrace \
-            -PaospDepsDir="${AOSP_DEPS_DIR}" \
-            :messagingGradle:assembleDebug
+            :smart-sms-core:testDebugUnitTest \
+            :smart-sms-core:assembleDebug
 
-      - name: Upload debug APK
+      - name: Upload debug AAR
         uses: actions/upload-artifact@v4
         with:
-          name: GKUIMessage-debug-apk
-          path: gradle-app/build/outputs/apk/debug/*.apk
+          name: smart-sms-core-debug-aar
+          path: smart-sms-core/build/outputs/aar/*-debug.aar
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload build reports on failure
+      - name: Upload unit test reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: gradle-reports
+          name: smart-sms-core-test-reports
           path: |
-            gradle-app/build/reports/**
-            gradle-app/build/outputs/logs/**
+            smart-sms-core/build/reports/**
+            smart-sms-core/build/test-results/**
           if-no-files-found: ignore
           retention-days: 14
