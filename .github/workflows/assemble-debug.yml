@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
 
           # Avoid `yes | sdkmanager --licenses`: with pipefail, yes receives
-          # SIGPIPE after sdkmanager accepts all licenses and falsely fails CI.
+          # SIGPIPE after sdkmanager accepts licenses and can falsely fail CI.
           printf 'y\n%.0s' {1..100} > "${RUNNER_TEMP}/sdkmanager-licenses.txt"
           sdkmanager --licenses < "${RUNNER_TEMP}/sdkmanager-licenses.txt"
 
