@@ -55,16 +55,12 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android 35 build platform
+      - name: Accept licenses and install Android SDK packages
         shell: bash
         run: |
           set -euo pipefail
-
-          # Avoid `yes | sdkmanager --licenses`: with pipefail, yes receives
-          # SIGPIPE after sdkmanager accepts licenses and can falsely fail CI.
-          printf 'y\n%.0s' {1..100} > "${RUNNER_TEMP}/sdkmanager-licenses.txt"
-          sdkmanager --licenses < "${RUNNER_TEMP}/sdkmanager-licenses.txt"
-
+          printf 'y\n%.0s' {1..100} > "$RUNNER_TEMP/sdkmanager-licenses.txt"
+          sdkmanager --licenses < "$RUNNER_TEMP/sdkmanager-licenses.txt"
           sdkmanager --install \
             'platform-tools' \
             'platforms;android-35' \
