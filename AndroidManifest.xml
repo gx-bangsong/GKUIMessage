@@ -475,6 +475,11 @@
             android:exported="false">
         </receiver>
 
+        <!-- Private notification action; no other app can request a clipboard copy. -->
+        <receiver
+            android:name=".receiver.OtpCopyReceiver"
+            android:exported="false" />
+
         <!-- Broadcast receiver that will be notified for ActionService alarms. -->
         <receiver
             android:name=".datamodel.action.ActionServiceImpl$PendingActionReceiver"
