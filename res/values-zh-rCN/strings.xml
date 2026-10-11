@@ -399,4 +399,8 @@
     <string name="attachment_limit_reached_send_anyway" msgid="2348790618093735551">"仍然发送"</string>
     <string name="conversation_creation_failure" msgid="8597624563218724441">"无法发起对话"</string>
     <string name="selected_sim_content_message" msgid="4504796674843354505">"已选择<xliff:g id="SELECTED_SIM">%s</xliff:g>"</string>
+
+    <string name="otp_notification_copy_action_title">在通知中显示复制验证码按钮</string>
+    <string name="otp_notification_copy_action_summary">识别到验证码时，在短信通知中提供复制操作</string>
+    <string name="otp_notification_copy_action">复制验证码</string>
 </resources>
