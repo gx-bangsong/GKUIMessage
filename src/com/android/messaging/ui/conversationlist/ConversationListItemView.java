@@ -56,6 +56,7 @@ import com.android.messaging.ui.ContactIconView;
 import com.android.messaging.ui.SnackBar;
 import com.android.messaging.ui.SnackBarInteraction;
 import com.android.messaging.util.Assert;
+import com.android.messaging.util.ColorContrastUtil;
 import com.android.messaging.util.ImageUtils;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.Typefaces;
@@ -543,7 +544,7 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
         final int color = mData.getCategoryColor();
         if (color != 0) {
             mCategoryChip.setChipBackgroundColor(ColorStateList.valueOf(color));
-            mCategoryChip.setTextColor(Color.WHITE);
+            mCategoryChip.setTextColor(ColorContrastUtil.readableContentColor(color));
         }
         mCategoryChip.setVisibility(VISIBLE);
     }
@@ -573,7 +574,7 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
                 mCrossSwipeArchiveLeftImageView.setVisibility(GONE);
                 mCrossSwipeArchiveRightImageView.setVisibility(VISIBLE);
             }
-            mSwipeableContainer.setBackgroundResource(R.color.window_background);
+            mSwipeableContainer.setBackgroundResource(R.drawable.swipe_shadow_drag);
         }
     }
 

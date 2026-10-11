@@ -399,4 +399,8 @@
     <string name="attachment_limit_reached_send_anyway" msgid="2348790618093735551">"確定傳送"</string>
     <string name="conversation_creation_failure" msgid="8597624563218724441">"無法發起對話"</string>
     <string name="selected_sim_content_message" msgid="4504796674843354505">"已選取「<xliff:g id="SELECTED_SIM">%s</xliff:g>」"</string>
+
+    <string name="otp_notification_copy_action_title">在通知中顯示複製驗證碼按鈕</string>
+    <string name="otp_notification_copy_action_summary">辨識到驗證碼時，在簡訊通知中提供複製操作</string>
+    <string name="otp_notification_copy_action">複製驗證碼</string>
 </resources>

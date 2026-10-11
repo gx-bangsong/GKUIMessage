@@ -63,6 +63,8 @@ import com.android.messaging.datamodel.media.MediaRequest;
 import com.android.messaging.datamodel.media.MediaResourceManager;
 import com.android.messaging.datamodel.media.MessagePartVideoThumbnailRequestDescriptor;
 import com.android.messaging.datamodel.media.UriImageRequestDescriptor;
+import com.android.messaging.otp.OtpAutoCopyManager;
+import com.android.messaging.receiver.OtpCopyReceiver;
 import com.android.messaging.sms.MmsSmsUtils;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.UIIntents;
@@ -716,6 +718,7 @@ public class BugleNotifications {
 
         final WearableExtender wearableExtender = new WearableExtender();
         setWearableGroupOptions(notifBuilder, notificationState);
+        addOtpCopyAction(notifBuilder, notificationState);
 
         if (notificationState instanceof MultiMessageNotificationState) {
             if (attachmentBitmap != null) {
@@ -743,6 +746,30 @@ public class BugleNotifications {
         // Apply the wearable options and build & post the notification
         notifBuilder.extend(wearableExtender);
         doNotify(notifBuilder.build(), notificationState);
+    }
+
+    private static void addOtpCopyAction(final NotificationCompat.Builder notifBuilder,
+            final NotificationState notificationState) {
+        if (!(notificationState instanceof MessageNotificationState)) {
+            return;
+        }
+        final MessageNotificationState messageState = (MessageNotificationState) notificationState;
+        if (TextUtils.isEmpty(messageState.mOtpCode)
+                || TextUtils.isEmpty(messageState.mOtpMessageId)) {
+            return;
+        }
+        final Context context = Factory.get().getApplicationContext();
+        if (!context.getSharedPreferences(BuglePrefs.SHARED_PREFERENCES_NAME,
+                Context.MODE_PRIVATE).getBoolean(
+                OtpAutoCopyManager.PREF_NOTIFICATION_COPY_ACTION_ENABLED, true)) {
+            return;
+        }
+        final PendingIntent copyPendingIntent = OtpCopyReceiver.getPendingIntent(context,
+                messageState.mOtpMessageId, messageState.mOtpCode);
+        notifBuilder.addAction(new NotificationCompat.Action.Builder(
+                R.drawable.ic_content_copy_light,
+                context.getString(R.string.otp_notification_copy_action),
+                copyPendingIntent).build());
     }
 
     private static void setWearableGroupOptions(final NotificationCompat.Builder notifBuilder,

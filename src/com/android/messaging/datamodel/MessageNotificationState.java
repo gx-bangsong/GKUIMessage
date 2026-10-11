@@ -48,11 +48,18 @@ import com.android.messaging.datamodel.data.ConversationParticipantsData;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
+import com.android.messaging.otp.OtpAutoCopyManager;
+import com.android.messaging.otp.OtpDetectionCache;
+import com.android.messaging.otp.OtpDetector;
+import com.android.messaging.otp.OtpMatch;
+import com.android.messaging.otp.OtpRule;
+import com.android.messaging.otp.OtpRuleRepository;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.AvatarUriUtil;
 import com.android.messaging.util.BugleGservicesKeys;
+import com.android.messaging.util.BuglePrefs;
 import com.android.messaging.util.ConversationIdSet;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.NotificationsUtil;
@@ -152,11 +159,12 @@ public abstract class MessageNotificationState extends NotificationState {
         final String mAuthorFirstName;
         final boolean mIsManualDownloadNeeded;
         final String mMessageId;
+        final String mOtpCode;
 
         MessageLineInfo(final boolean isGroup, final String authorFullName,
                 final String authorFirstName, final CharSequence text, final Uri attachmentUrl,
                 final String attachmentType, final boolean isManualDownloadNeeded,
-                final String messageId) {
+                final String messageId, final String otpCode) {
             super(BugleNotifications.LOCAL_SMS_NOTIFICATION);
             mAuthorFullName = authorFullName;
             mAuthorFirstName = authorFirstName;
@@ -165,6 +173,7 @@ public abstract class MessageNotificationState extends NotificationState {
             mAttachmentType = attachmentType;
             mIsManualDownloadNeeded = isManualDownloadNeeded;
             mMessageId = messageId;
+            mOtpCode = otpCode;
         }
     }
 
@@ -272,6 +281,8 @@ public abstract class MessageNotificationState extends NotificationState {
     }
 
     final ConversationInfoList mConvList;
+    protected String mOtpCode;
+    protected String mOtpMessageId;
     private long mLatestReceivedTimestamp;
 
     private static ConversationIdSet makeConversationIdSet(final ConversationInfoList convList) {
@@ -327,6 +338,23 @@ public abstract class MessageNotificationState extends NotificationState {
                     getClearIntentRequestCode());
     }
 
+    /** Returns the newest OTP match retained for this notification, if any. */
+    private static MessageLineInfo getLatestOtpMessageLineInfo(
+            final ConversationInfoList convList) {
+        if (convList == null || convList.mConvInfos == null) {
+            return null;
+        }
+        for (final ConversationLineInfo convInfo : convList.mConvInfos) {
+            for (final NotificationLineInfo lineInfo : convInfo.mLineInfos) {
+                if (lineInfo instanceof MessageLineInfo
+                        && !TextUtils.isEmpty(((MessageLineInfo) lineInfo).mOtpCode)) {
+                    return (MessageLineInfo) lineInfo;
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * Notification for multiple messages in at least 2 different conversations.
      */
@@ -339,6 +367,8 @@ public abstract class MessageNotificationState extends NotificationState {
             super(convList);
             mAttachmentUri = null;
             mAttachmentType = null;
+            mOtpCode = state.mOtpCode;
+            mOtpMessageId = state.mOtpMessageId;
 
             // Pull the ticker title/text from the single notification
             mTickerSender = state.getTitle();
@@ -445,6 +475,11 @@ public abstract class MessageNotificationState extends NotificationState {
             final ConversationLineInfo convInfo = convList.mConvInfos.get(0);
 
             final Context context = Factory.get().getApplicationContext();
+            final MessageLineInfo otpLineInfo = getLatestOtpMessageLineInfo(convList);
+            if (otpLineInfo != null) {
+                mOtpCode = otpLineInfo.mOtpCode;
+                mOtpMessageId = otpLineInfo.mMessageId;
+            }
             MessageLineInfo messageInfo = (MessageLineInfo) convInfo.mLineInfos.get(0);
             // attached photo
             mAttachmentUri = messageInfo.mAttachmentUri;
@@ -795,10 +830,23 @@ public abstract class MessageNotificationState extends NotificationState {
         // so the corresponding conversations are added in that order, too.
         final Map<String, ConversationLineInfo> convLineInfos = new LinkedHashMap<>();
         int messageCount = 0;
+        boolean hasCheckedLatestSmsForOtp = false;
 
         Cursor convMessageCursor = null;
         try {
             final Context context = Factory.get().getApplicationContext();
+            final boolean notificationCopyActionEnabled = context.getSharedPreferences(
+                    BuglePrefs.SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).getBoolean(
+                    OtpAutoCopyManager.PREF_NOTIFICATION_COPY_ACTION_ENABLED, true);
+            List<OtpRule> otpRules = null;
+            if (notificationCopyActionEnabled) {
+                try {
+                    otpRules = OtpRuleRepository.getEnabledRules();
+                } catch (final RuntimeException exception) {
+                    // A failed OTP settings read must never prevent the normal SMS notification.
+                    LogUtil.w(TAG, "Unable to read OTP rules for notification", exception);
+                }
+            }
             final DatabaseWrapper db = DataModel.get().getDatabase();
 
             convMessageCursor = db.rawQuery(
@@ -828,6 +876,31 @@ public abstract class MessageNotificationState extends NotificationState {
 
                     CharSequence text = messageText;
                     final boolean isManualDownloadNeeded = convMessageData.getIsMmsNotification();
+                    String notificationOtpCode = null;
+                    if (!hasCheckedLatestSmsForOtp && convMessageData.getIsSms()) {
+                        // The query is newest-first. Inspect only the latest incoming SMS, rather
+                        // than scanning all unread or historical messages for notification actions.
+                        hasCheckedLatestSmsForOtp = true;
+                        if (notificationCopyActionEnabled && !isManualDownloadNeeded
+                                && !TextUtils.isEmpty(messageText)) {
+                            notificationOtpCode = OtpDetectionCache.get(messageText);
+                            if (TextUtils.isEmpty(notificationOtpCode) && otpRules != null
+                                    && !otpRules.isEmpty()) {
+                                try {
+                                    final OtpMatch match = OtpDetector.detectWithinTimeout(
+                                            messageText, otpRules);
+                                    if (match != null) {
+                                        notificationOtpCode = match.value;
+                                        OtpDetectionCache.record(messageText, match.value);
+                                    }
+                                } catch (final RuntimeException exception) {
+                                    // Keep notification generation independent from OTP matching.
+                                    LogUtil.w(TAG, "Unable to detect OTP for notification",
+                                            exception);
+                                }
+                            }
+                        }
+                    }
                     if (isManualDownloadNeeded) {
                         // Don't try and convert the text from html if it's sms and not a sms push
                         // notification.
@@ -923,7 +996,8 @@ public abstract class MessageNotificationState extends NotificationState {
                         }
                         currConvInfo.mLineInfos.add(new MessageLineInfo(currConvInfo.mIsGroup,
                                 authorFullName, authorFirstName, text,
-                                attachmentUri, attachmentType, isManualDownloadNeeded, messageId));
+                                attachmentUri, attachmentType, isManualDownloadNeeded, messageId,
+                                notificationOtpCode));
                     }
                     messageCount++;
                     currConvInfo.mTotalMessageCount++;

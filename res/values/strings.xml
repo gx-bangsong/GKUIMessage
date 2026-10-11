@@ -762,6 +762,9 @@
     <string name="otp_auto_copy_summary">Copies a detected code from newly received SMS messages</string>
     <string name="otp_show_toast_title">Show copy confirmation</string>
     <string name="otp_show_toast_summary">Show a short message after a code is copied</string>
+    <string name="otp_notification_copy_action_title">Show a copy button in notifications</string>
+    <string name="otp_notification_copy_action_summary">Add a copy-code action to notifications containing a recognized verification code</string>
+    <string name="otp_notification_copy_action">Copy code</string>
     <string name="otp_rules_title">Recognition rules</string>
     <string name="otp_rules_summary">Drag to set priority. Swipe custom rules left to delete.</string>
     <string name="otp_add_rule">Add rule</string>

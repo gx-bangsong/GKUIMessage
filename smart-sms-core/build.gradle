@@ -13,6 +13,9 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.all {
+            systemProperty 'gkuimessage.rootDir', rootProject.projectDir.absolutePath
+        }
     }
 
     compileOptions {

@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.messaging.R;
+import com.android.messaging.datamodel.action.UpdateMessageNotificationAction;
 import com.android.messaging.otp.OtpAutoCopyManager;
 import com.android.messaging.otp.OtpRule;
 import com.android.messaging.otp.OtpRuleRepository;
@@ -62,13 +63,22 @@ public final class OtpSettingsFragment extends Fragment implements OtpRuleAdapte
 
         final MaterialSwitch autoCopy = view.findViewById(R.id.otp_auto_copy_switch);
         final MaterialSwitch showToast = view.findViewById(R.id.otp_show_toast_switch);
+        final MaterialSwitch notificationCopyAction =
+                view.findViewById(R.id.otp_notification_copy_action_switch);
         autoCopy.setChecked(mPreferences.getBoolean(OtpAutoCopyManager.PREF_AUTO_COPY_ENABLED,
                 true));
         showToast.setChecked(mPreferences.getBoolean(OtpAutoCopyManager.PREF_SHOW_TOAST, true));
+        notificationCopyAction.setChecked(mPreferences.getBoolean(
+                OtpAutoCopyManager.PREF_NOTIFICATION_COPY_ACTION_ENABLED, true));
         autoCopy.setOnCheckedChangeListener((button, checked) -> mPreferences.edit().putBoolean(
                 OtpAutoCopyManager.PREF_AUTO_COPY_ENABLED, checked).apply());
         showToast.setOnCheckedChangeListener((button, checked) -> mPreferences.edit().putBoolean(
                 OtpAutoCopyManager.PREF_SHOW_TOAST, checked).apply());
+        notificationCopyAction.setOnCheckedChangeListener((button, checked) -> {
+            mPreferences.edit().putBoolean(
+                    OtpAutoCopyManager.PREF_NOTIFICATION_COPY_ACTION_ENABLED, checked).apply();
+            UpdateMessageNotificationAction.updateMessageNotification();
+        });
 
         final RecyclerView rules = view.findViewById(R.id.otp_rules_list);
         rules.setLayoutManager(new LinearLayoutManager(requireContext()));

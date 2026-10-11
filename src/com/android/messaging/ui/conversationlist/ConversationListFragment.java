@@ -58,6 +58,7 @@ import com.android.messaging.ui.ListEmptyView;
 import com.android.messaging.ui.SnackBarInteraction;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.AccessibilityUtil;
+import com.android.messaging.util.ColorContrastUtil;
 import com.android.messaging.util.ImeUtil;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.ThreadUtil;
@@ -387,9 +388,18 @@ public class ConversationListFragment extends Fragment implements ConversationLi
         chip.setText(unread > 0 ? getString(R.string.category_chip_unread_count, category.name, unread)
                 : category.name);
         final int selectedColor = category.color;
+        final int onSelectedColor = ColorContrastUtil.readableContentColor(selectedColor);
+        final int onSurfaceColor = ColorContrastUtil.resolveThemeColor(requireContext(),
+                com.google.android.material.R.attr.colorOnSurface, Color.DKGRAY);
         chip.setChipBackgroundColor(new ColorStateList(new int[][] {
                 new int[] {android.R.attr.state_checked}, new int[] {}},
                 new int[] {selectedColor, Color.TRANSPARENT}));
+        chip.setTextColor(new ColorStateList(new int[][] {
+                new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {onSelectedColor, onSurfaceColor}));
+        chip.setChipIconTint(new ColorStateList(new int[][] {
+                new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {onSelectedColor, onSurfaceColor}));
         chip.setChipStrokeColor(ColorStateList.valueOf(selectedColor));
         chip.setChipStrokeWidth(1f);
         chip.setOnClickListener(view -> {
