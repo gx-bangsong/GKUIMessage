@@ -33,9 +33,8 @@ public final class ServiceSmsParser {
         for (final String keyword : rule.keywords) {
             if (keyword != null && lower.contains(keyword.toLowerCase(Locale.ROOT))) return true;
         }
-        final String normalized = normalize(sender);
         for (final String prefix : rule.senderPrefixes) {
-            if (prefix != null && normalized.startsWith(normalize(prefix))) return true;
+            if (prefix != null && senderMatches(sender, prefix)) return true;
         }
         return false;
     }
@@ -75,6 +74,15 @@ public final class ServiceSmsParser {
     }
 
     private static float bounded(final float value) { return Math.max(0f, Math.min(1f, value)); }
+
+    private static boolean senderMatches(final String sender, final String prefix) {
+        final String normalizedSender = normalize(sender);
+        final String normalizedPrefix = normalize(prefix);
+        return normalizedSender.startsWith(normalizedPrefix)
+                || normalizedSender.startsWith("+86" + normalizedPrefix)
+                || normalizedSender.startsWith("86" + normalizedPrefix);
+    }
+
     private static String normalize(final String sender) {
         return sender == null ? "" : sender.replaceAll("[^0-9A-Za-z+]", "");
     }

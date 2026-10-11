@@ -11,17 +11,18 @@ import android.provider.CalendarContract;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 
 import com.android.messaging.R;
 import com.android.messaging.card.CardType;
 import com.android.messaging.card.SmsCard;
 import com.android.messaging.card.SmsCardRepository;
+import com.android.messaging.util.ColorContrastUtil;
 import com.android.messaging.util.ThreadUtil;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -51,6 +52,7 @@ public final class SmsCardView extends MaterialCardView {
     private final MaterialButton mExpand;
     private final LinearLayout mDetails;
     private final LinearLayout mActions;
+    private final HorizontalScrollView mActionsScroll;
     private long mBoundMessageId = -1;
     @Nullable private SmsCard mCard;
 
@@ -69,11 +71,17 @@ public final class SmsCardView extends MaterialCardView {
         mHeader.setOrientation(LinearLayout.HORIZONTAL);
         mTitle = new TextView(context);
         mTitle.setTextSize(16);
+        mTitle.setTextColor(onSurfaceColor());
+        mTitle.setSingleLine(true);
+        mTitle.setEllipsize(TextUtils.TruncateAt.END);
         mTitle.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         mHeader.addView(mTitle, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1));
         mStatus = new Chip(context, null, com.google.android.material.R.attr.chipFilterStyle);
         mStatus.setCheckable(false);
         mStatus.setClickable(false);
+        mStatus.setSingleLine(true);
+        mStatus.setEllipsize(TextUtils.TruncateAt.END);
+        mStatus.setMaxWidth(dp(96));
         mHeader.addView(mStatus);
         mExpand = new MaterialButton(context, null,
                 com.google.android.material.R.attr.materialButtonTextButtonStyle);
@@ -87,9 +95,15 @@ public final class SmsCardView extends MaterialCardView {
         mDetails.setPadding(0, dp(6), 0, 0);
         mRoot.addView(mDetails);
         mActions = new LinearLayout(context);
-        mActions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        mActions.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         mActions.setOrientation(LinearLayout.HORIZONTAL);
-        mRoot.addView(mActions);
+        mActionsScroll = new HorizontalScrollView(context);
+        mActionsScroll.setHorizontalScrollBarEnabled(false);
+        mActionsScroll.setFillViewport(false);
+        mActionsScroll.addView(mActions, new HorizontalScrollView.LayoutParams(
+                LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+        mRoot.addView(mActionsScroll, new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         setVisibility(GONE);
     }
 
@@ -121,8 +135,9 @@ public final class SmsCardView extends MaterialCardView {
         mTitle.setText(titleFor(mCard.cardType, data));
         final String status = statusFor(mCard.cardType, data);
         mStatus.setText(status);
-        mStatus.setChipBackgroundColor(ColorStateList.valueOf(colorFor(mCard.cardType)));
-        mStatus.setTextColor(0xffffffff);
+        final int statusBackground = colorFor(mCard.cardType);
+        mStatus.setChipBackgroundColor(ColorStateList.valueOf(statusBackground));
+        mStatus.setTextColor(ColorContrastUtil.readableContentColor(statusBackground));
         final boolean expanded = mCard.isExpanded || mCard.confidence >= .8f;
         mDetails.removeAllViews();
         addFields(data, expanded);
@@ -153,11 +168,12 @@ public final class SmsCardView extends MaterialCardView {
             row.setGravity(Gravity.CENTER_VERTICAL);
             final TextView label = new TextView(getContext());
             label.setText(labelFor(key));
-            label.setTextColor(0xff5f6368);
+            label.setTextColor(onSurfaceVariantColor());
             row.addView(label, new LinearLayout.LayoutParams(dp(92), LayoutParams.WRAP_CONTENT));
             final TextView text = new TextView(getContext());
             text.setText(value);
             text.setTextSize(14);
+            text.setTextColor(onSurfaceColor());
             row.addView(text, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1));
             if (isCoreField(key)) {
                 final MaterialButton copy = actionButton("复制");
@@ -169,7 +185,7 @@ public final class SmsCardView extends MaterialCardView {
         if (mCard != null && mCard.cardType == CardType.OTP_CARD) {
             final TextView source = new TextView(getContext());
             source.setText(data.optString("sourceApp"));
-            source.setTextColor(0xff5f6368);
+            source.setTextColor(onSurfaceVariantColor());
             mDetails.addView(source);
         }
     }
@@ -308,5 +324,18 @@ public final class SmsCardView extends MaterialCardView {
     }
 
     private int dp(final int value) { return (int) (value * getResources().getDisplayMetrics().density); }
-    private int resolveSurfaceColor() { return 0xfff6f3f8; }
+    private int resolveSurfaceColor() {
+        return ColorContrastUtil.resolveThemeColor(getContext(),
+                com.google.android.material.R.attr.colorSurface, 0xfff6f3f8);
+    }
+
+    private int onSurfaceColor() {
+        return ColorContrastUtil.resolveThemeColor(getContext(),
+                com.google.android.material.R.attr.colorOnSurface, 0xff1b1b1f);
+    }
+
+    private int onSurfaceVariantColor() {
+        return ColorContrastUtil.resolveThemeColor(getContext(),
+                com.google.android.material.R.attr.colorOnSurfaceVariant, 0xff45464f);
+    }
 }

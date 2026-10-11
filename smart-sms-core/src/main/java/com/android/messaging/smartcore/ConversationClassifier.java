@@ -50,7 +50,7 @@ public final class ConversationClassifier {
                 return body != null && body.toLowerCase(Locale.ROOT).contains(
                         rule.value.toLowerCase(Locale.ROOT));
             case SENDER:
-                return normalize(sender).startsWith(normalize(rule.value));
+                return senderMatches(sender, rule.value);
             case REGEX:
                 if (body == null) return false;
                 try {
@@ -67,6 +67,14 @@ public final class ConversationClassifier {
     private static int compare(final CategoryDefinition first, final CategoryDefinition second) {
         final int sort = Integer.compare(first.sortOrder, second.sortOrder);
         return sort != 0 ? sort : first.id.compareTo(second.id);
+    }
+
+    private static boolean senderMatches(final String sender, final String prefix) {
+        final String normalizedSender = normalize(sender);
+        final String normalizedPrefix = normalize(prefix);
+        return normalizedSender.startsWith(normalizedPrefix)
+                || normalizedSender.startsWith("+86" + normalizedPrefix)
+                || normalizedSender.startsWith("86" + normalizedPrefix);
     }
 
     private static String normalize(final String sender) {

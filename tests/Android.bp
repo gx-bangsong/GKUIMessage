@@ -1,0 +1,9 @@
+// Device-side UI smoke tests. These run against the system-built Messaging app, not Gradle CI.
+android_test {
+    name: "messaging_smart_sms_ui_tests",
+    manifest: "AndroidManifest.xml",
+    srcs: ["src/**/*.java"],
+    instrumentation_for: "messaging",
+    sdk_version: "test_current",
+    test_suites: ["device-tests"],
+}

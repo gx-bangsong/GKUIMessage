@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.messaging.tests">
+    <application android:label="Messaging Smart SMS UI Tests" />
+    <instrumentation
+        android:name="android.test.InstrumentationTestRunner"
+        android:label="Messaging Smart SMS UI Tests"
+        android:targetPackage="com.android.messaging" />
+</manifest>

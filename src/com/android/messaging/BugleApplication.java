@@ -40,6 +40,7 @@ import com.android.messaging.util.BuglePrefsKeys;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.Trace;
+import com.google.android.material.color.DynamicColors;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 
@@ -55,6 +56,10 @@ public class BugleApplication extends Application implements UncaughtExceptionHa
     public void onCreate() {
         Trace.beginSection("app.onCreate");
         super.onCreate();
+
+        // Material Components applies the Android 12+ wallpaper-derived light/dark palette before
+        // any Activity is created. Older releases retain the existing DayNight fallback theme.
+        DynamicColors.applyToActivitiesIfAvailable(this);
 
         FactoryImpl.register(getApplicationContext(), this);
 

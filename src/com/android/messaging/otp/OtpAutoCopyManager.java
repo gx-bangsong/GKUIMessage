@@ -29,6 +29,8 @@ import java.util.concurrent.Executors;
 public final class OtpAutoCopyManager {
     public static final String PREF_AUTO_COPY_ENABLED = "otp_auto_copy_enabled";
     public static final String PREF_SHOW_TOAST = "otp_show_copy_toast";
+    public static final String PREF_NOTIFICATION_COPY_ACTION_ENABLED =
+            "otp_notification_copy_action_enabled";
     private static final String CLIP_LABEL = "Messaging OTP";
     private static final long CLEAR_CLIP_DELAY_MILLIS = 60_000L;
 
@@ -81,6 +83,20 @@ public final class OtpAutoCopyManager {
     private static void finish(@Nullable final Runnable completion) {
         if (completion != null) {
             MAIN_HANDLER.post(completion);
+        }
+    }
+
+    /** Copies a value explicitly requested from the notification action. */
+    public static void copyFromNotification(@NonNull final Context context,
+            @Nullable final String otp) {
+        if (TextUtils.isEmpty(otp) || otp.length() > 32) {
+            return;
+        }
+        final Context applicationContext = context.getApplicationContext();
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            copyAndNotify(applicationContext, otp);
+        } else {
+            MAIN_HANDLER.post(() -> copyAndNotify(applicationContext, otp));
         }
     }
 
